@@ -1,0 +1,29 @@
+{
+    "expo": {
+        "name": "Sirkles",
+        "slug": "sirkles",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "dark",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#1a0a2e"
+        },
+        "assetBundlePatterns": ["**/*"],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.sirkles.game"
+        },
+        "android": {
+            "adaptiveIcon": {
+                "backgroundColor": "#1a0a2e"
+            },
+            "package": "com.sirkles.game"
+        },
+        "web": {
+            "bundler": "metro"
+        }
+    }
+}
