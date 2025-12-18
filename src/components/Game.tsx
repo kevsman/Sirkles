@@ -496,6 +496,7 @@ export const Game: React.FC<GameProps> = () => {
     const handleTouchStart = useCallback(
         (e: GestureResponderEvent) => {
             sound.init();
+            haptic.light();
             gameStateRef.current.isHolding = true;
             if (!gameStateRef.current.isPlaying) {
                 startGame();
