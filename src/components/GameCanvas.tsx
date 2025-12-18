@@ -419,16 +419,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               strokeWidth={3}
               color="rgba(255, 255, 255, 0.08)"
             />
-            {/* Progress arc - approximated with circles */}
+            {/* Progress arc */}
             {powerupProgressPercent > 0 && (
-              <Circle
-                cx={centerX}
-                cy={centerY}
-                r={playerSize + 35}
+              <Path
+                path={(() => {
+                  const r = playerSize + 35;
+                  const path = Skia.Path.Make();
+                  path.addArc(
+                    {
+                      x: centerX - r,
+                      y: centerY - r,
+                      width: r * 2,
+                      height: r * 2,
+                    },
+                    -90,
+                    360 * powerupProgressPercent
+                  );
+                  return path;
+                })()}
                 style="stroke"
                 strokeWidth={3}
                 color={POWERUP_TYPES[nextPowerupType]?.color || "#ffd700"}
                 opacity={isPowerupReady ? 0.9 : 0.5}
+                strokeCap="round"
               />
             )}
           </Group>
