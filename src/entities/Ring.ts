@@ -34,7 +34,10 @@ export class Ring {
     }
 
     isAtPlayer(playerSize: number): boolean {
-        return !this.passed && this.radius <= playerSize + GAME_CONFIG.RING_THICKNESS && this.radius >= playerSize - GAME_CONFIG.RING_THICKNESS * 2;
+        // Detection window: check when ring radius is close to player size
+        // We only check the upper bound (ring is close to or inside player)
+        // This prevents "tunneling" where fast rings/player growth might skip the detection window entirely
+        return !this.passed && this.radius <= playerSize + GAME_CONFIG.RING_THICKNESS;
     }
 
     playerFitsGap(playerSize: number): boolean {
@@ -42,9 +45,16 @@ export class Ring {
     }
 
     // Phantom hitbox - uses forgiveness buffer for near misses
+    // Shrinks effective player size to give a little leeway when too big
+    // Also expands the gap slightly to give leeway when too small
     playerFitsGapWithForgiveness(playerSize: number, forgiveness: number): boolean {
-        const forgivenSize = playerSize * (1 - forgiveness);
-        return forgivenSize >= this.innerRadius && forgivenSize <= this.outerRadius;
+        // Apply forgiveness: shrink player if too big, or expand valid gap range if too small
+        const forgivenPlayerSize = playerSize * (1 - forgiveness);
+        const expandedInner = this.innerRadius * (1 - forgiveness);
+        
+        // Pass if shrunken player fits OR if player fits expanded inner boundary
+        return (forgivenPlayerSize >= this.innerRadius && forgivenPlayerSize <= this.outerRadius) ||
+               (playerSize >= expandedInner && playerSize <= this.outerRadius);
     }
 
     // Check if player is in the "near miss" zone
