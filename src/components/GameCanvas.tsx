@@ -88,8 +88,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const time = animationTime * 0.003;
 
   // Calculate shake offset - use deterministic shake based on time instead of random
-  const shakeX = screenShake > 0 ? Math.sin(animationTime * 0.1) * screenShake * 0.5 : 0;
-  const shakeY = screenShake > 0 ? Math.cos(animationTime * 0.13) * screenShake * 0.5 : 0;
+  const shakeX =
+    screenShake > 0 ? Math.sin(animationTime * 0.1) * screenShake * 0.5 : 0;
+  const shakeY =
+    screenShake > 0 ? Math.cos(animationTime * 0.13) * screenShake * 0.5 : 0;
 
   // Rainbow color calculation - memoize to avoid recalculation
   const rainbowHue = rainbowActive ? (animationTime * 0.3) % 360 : 0;
@@ -458,75 +460,91 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 };
 
 // Memoized sub-components to prevent re-renders
-const HoldingIndicator = memo(({ centerX, centerY, pulsedSize, animationTime }: {
-  centerX: number;
-  centerY: number;
-  pulsedSize: number;
-  animationTime: number;
-}) => {
-  const expandPulse = (animationTime % 500) / 500;
-  return (
-    <Circle
-      cx={centerX}
-      cy={centerY}
-      r={pulsedSize + expandPulse * 15}
-      style="stroke"
-      strokeWidth={3 - expandPulse * 2}
-      color={`rgba(255, 255, 255, ${0.6 - expandPulse * 0.6})`}
-    />
-  );
-});
-
-const PowerupProgressRing = memo(({ centerX, centerY, playerSize, progressPercent, nextPowerupType, isPowerupReady }: {
-  centerX: number;
-  centerY: number;
-  playerSize: number;
-  progressPercent: number;
-  nextPowerupType: string;
-  isPowerupReady: boolean;
-}) => {
-  // Memoize the path to avoid recreating every frame
-  const progressPath = useMemo(() => {
-    const r = playerSize + 35;
-    const path = Skia.Path.Make();
-    path.addArc(
-      {
-        x: centerX - r,
-        y: centerY - r,
-        width: r * 2,
-        height: r * 2,
-      },
-      -90,
-      360 * progressPercent
-    );
-    return path;
-  }, [centerX, centerY, playerSize, progressPercent]);
-
-  return (
-    <Group>
-      {/* Background ring */}
+const HoldingIndicator = memo(
+  ({
+    centerX,
+    centerY,
+    pulsedSize,
+    animationTime,
+  }: {
+    centerX: number;
+    centerY: number;
+    pulsedSize: number;
+    animationTime: number;
+  }) => {
+    const expandPulse = (animationTime % 500) / 500;
+    return (
       <Circle
         cx={centerX}
         cy={centerY}
-        r={playerSize + 35}
+        r={pulsedSize + expandPulse * 15}
         style="stroke"
-        strokeWidth={3}
-        color="rgba(255, 255, 255, 0.08)"
+        strokeWidth={3 - expandPulse * 2}
+        color={`rgba(255, 255, 255, ${0.6 - expandPulse * 0.6})`}
       />
-      {/* Progress arc */}
-      {progressPercent > 0 && (
-        <Path
-          path={progressPath}
+    );
+  }
+);
+
+const PowerupProgressRing = memo(
+  ({
+    centerX,
+    centerY,
+    playerSize,
+    progressPercent,
+    nextPowerupType,
+    isPowerupReady,
+  }: {
+    centerX: number;
+    centerY: number;
+    playerSize: number;
+    progressPercent: number;
+    nextPowerupType: string;
+    isPowerupReady: boolean;
+  }) => {
+    // Memoize the path to avoid recreating every frame
+    const progressPath = useMemo(() => {
+      const r = playerSize + 35;
+      const path = Skia.Path.Make();
+      path.addArc(
+        {
+          x: centerX - r,
+          y: centerY - r,
+          width: r * 2,
+          height: r * 2,
+        },
+        -90,
+        360 * progressPercent
+      );
+      return path;
+    }, [centerX, centerY, playerSize, progressPercent]);
+
+    return (
+      <Group>
+        {/* Background ring */}
+        <Circle
+          cx={centerX}
+          cy={centerY}
+          r={playerSize + 35}
           style="stroke"
           strokeWidth={3}
-          color={POWERUP_TYPES[nextPowerupType]?.color || "#ffd700"}
-          opacity={isPowerupReady ? 0.9 : 0.5}
-          strokeCap="round"
+          color="rgba(255, 255, 255, 0.08)"
         />
-      )}
-    </Group>
-  );
-});
+        {/* Progress arc */}
+        {progressPercent > 0 && (
+          <Path
+            path={progressPath}
+            style="stroke"
+            strokeWidth={3}
+            color={POWERUP_TYPES[nextPowerupType]?.color || "#ffd700"}
+            opacity={isPowerupReady ? 0.9 : 0.5}
+            strokeCap="round"
+          />
+        )}
+      </Group>
+    );
+  }
+);
 
 // Helper functions
 function lightenColor(hex: string, percent: number): string {
