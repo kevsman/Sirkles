@@ -179,11 +179,34 @@ export class SoundSystem {
             // Pre-load all sounds
             await this.preloadSounds();
             
+            // Warm up the audio system by playing a silent sound
+            await this.warmup();
+            
             this.initialized = true;
             console.log('SoundSystem initialized successfully');
         } catch (e) {
             console.log('Audio init error:', e);
             this.enabled = false;
+        }
+    }
+
+    // Play a silent sound to "wake up" the audio system
+    async warmup() {
+        const pool = this.soundPools.get('pass');
+        if (pool && pool.length > 0) {
+            try {
+                const sound = pool[0];
+                await sound.setVolumeAsync(0); // Silent
+                await sound.setPositionAsync(0);
+                await sound.playAsync();
+                // Wait a bit for it to start
+                await new Promise(resolve => setTimeout(resolve, 50));
+                await sound.stopAsync();
+                await sound.setVolumeAsync(1); // Restore volume
+                console.log('Audio system warmed up');
+            } catch (e) {
+                console.log('Warmup failed:', e);
+            }
         }
     }
 
