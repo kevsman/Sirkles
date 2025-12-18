@@ -21,8 +21,19 @@ export interface BurstOptions {
     startAngle?: number;
 }
 
+const MAX_PARTICLES = 150; // Limit particle count to prevent lag
+
 export class ParticleSystem {
     particles: Particle[] = [];
+
+    /**
+     * Add particles while respecting the limit
+     */
+    private addParticle(particle: Particle) {
+        if (this.particles.length < MAX_PARTICLES) {
+            this.particles.push(particle);
+        }
+    }
 
     /**
      * Create particles in a burst pattern with sparkles
@@ -30,11 +41,15 @@ export class ParticleSystem {
     burst(x: number, y: number, color: string, count: number = 20, options: BurstOptions = {}) {
         const { minSpeed = 2, maxSpeed = 5, minSize = 2, maxSize = 6, spread = Math.PI * 2, startAngle = 0 } = options;
 
-        for (let i = 0; i < count; i++) {
-            const angle = startAngle + (spread * i) / count + (Math.random() - 0.5) * 0.3;
+        // Reduce count if we're near the limit
+        const availableSlots = MAX_PARTICLES - this.particles.length;
+        const effectiveCount = Math.min(count, Math.floor(availableSlots * 0.7));
+
+        for (let i = 0; i < effectiveCount; i++) {
+            const angle = startAngle + (spread * i) / effectiveCount + (Math.random() - 0.5) * 0.3;
             const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
 
-            this.particles.push({
+            this.addParticle({
                 x,
                 y,
                 vx: Math.cos(angle) * speed,
@@ -48,11 +63,12 @@ export class ParticleSystem {
             });
         }
 
-        // Add some extra tiny sparkles
-        for (let i = 0; i < count / 2; i++) {
+        // Add some extra tiny sparkles (reduced)
+        const sparkleCount = Math.min(Math.floor(effectiveCount / 3), MAX_PARTICLES - this.particles.length);
+        for (let i = 0; i < sparkleCount; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = maxSpeed + Math.random() * 3;
-            this.particles.push({
+            this.addParticle({
                 x,
                 y,
                 vx: Math.cos(angle) * speed,
@@ -69,11 +85,15 @@ export class ParticleSystem {
      * Create particles around a radius with trail effect
      */
     ring(centerX: number, centerY: number, radius: number, color: string, count: number = 12) {
-        for (let i = 0; i < count; i++) {
-            const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+        // Reduce count if we're near the limit
+        const availableSlots = MAX_PARTICLES - this.particles.length;
+        const effectiveCount = Math.min(count, Math.floor(availableSlots * 0.7));
+
+        for (let i = 0; i < effectiveCount; i++) {
+            const angle = (i / effectiveCount) * Math.PI * 2 + Math.random() * 0.5;
             const speed = 3 + Math.random() * 5;
 
-            this.particles.push({
+            this.addParticle({
                 x: centerX + Math.cos(angle) * radius,
                 y: centerY + Math.sin(angle) * radius,
                 vx: Math.cos(angle) * speed,
@@ -85,10 +105,11 @@ export class ParticleSystem {
             });
         }
 
-        // Inner sparkle ring
-        for (let i = 0; i < count / 2; i++) {
+        // Inner sparkle ring (reduced)
+        const sparkleCount = Math.min(Math.floor(effectiveCount / 3), MAX_PARTICLES - this.particles.length);
+        for (let i = 0; i < sparkleCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            this.particles.push({
+            this.addParticle({
                 x: centerX + Math.cos(angle) * (radius * 0.8),
                 y: centerY + Math.sin(angle) * (radius * 0.8),
                 vx: Math.cos(angle) * 2,
@@ -105,18 +126,28 @@ export class ParticleSystem {
      * Update all particles
      */
     update() {
-        this.particles = this.particles.filter((p) => {
+        // Faster decay when we have too many particles
+        const decayMultiplier = this.particles.length > MAX_PARTICLES * 0.8 ? 1.5 : 1;
+        
+        let writeIndex = 0;
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
             p.vx *= 0.97;
             p.vy *= 0.97;
-            p.life -= 0.022;
+            p.life -= 0.022 * decayMultiplier;
             p.size *= 0.96;
             if (p.rotation !== undefined && p.rotationSpeed !== undefined) {
                 p.rotation += p.rotationSpeed;
             }
-            return p.life > 0 && p.size > 0.5;
-        });
+            // Keep particle if still alive
+            if (p.life > 0 && p.size > 0.5) {
+                this.particles[writeIndex++] = p;
+            }
+        }
+        // Truncate array in-place (avoids creating new array)
+        this.particles.length = writeIndex;
     }
 
     /**

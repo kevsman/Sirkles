@@ -156,8 +156,8 @@ export class SoundSystem {
     enabled: boolean = true;
     initialized: boolean = false;
     soundFiles: Map<string, string> = new Map(); // Maps sound type to file URI
-    loadedSounds: Map<string, Audio.Sound> = new Map(); // Pre-loaded sound objects
-    activeSounds: Audio.Sound[] = [];
+    soundPools: Map<string, Audio.Sound[]> = new Map(); // Pools of sound objects
+    poolIndices: Map<string, number> = new Map(); // Round-robin indices
 
     // Music System
     musicPlaying: boolean = false;
@@ -264,13 +264,33 @@ export class SoundSystem {
     }
 
     async preloadSounds() {
+        // Variable pool sizes based on frequency of use to save memory
+        const poolSizes: Record<string, number> = {
+            'pass': 3,
+            'perfect': 3,
+            'whoosh': 3,
+            'combo': 2,
+            'powerup': 2,
+            'shield': 2,
+            'nearMiss': 2,
+            'death': 1,
+            'unlock': 1,
+        };
+
         for (const [name, uri] of this.soundFiles.entries()) {
             try {
-                const { sound } = await Audio.Sound.createAsync(
-                    { uri },
-                    { shouldPlay: false, volume: 1.0 }
-                );
-                this.loadedSounds.set(name, sound);
+                const size = poolSizes[name] || 1;
+                const pool: Audio.Sound[] = [];
+                
+                for (let i = 0; i < size; i++) {
+                    const { sound } = await Audio.Sound.createAsync(
+                        { uri },
+                        { shouldPlay: false, volume: 1.0 }
+                    );
+                    pool.push(sound);
+                }
+                this.soundPools.set(name, pool);
+                this.poolIndices.set(name, 0);
             } catch (e) {
                 console.log(`Failed to preload sound ${name}:`, e);
             }
@@ -297,59 +317,67 @@ export class SoundSystem {
         if (!this.enabled || !this.initialized) return;
 
         try {
-            const uri = this.soundFiles.get(type);
-            if (!uri) {
-                console.log(`Sound not found: ${type}`);
+            let pool = this.soundPools.get(type);
+            
+            // Fallback: if pool is missing or empty, try to create one on the fly
+            // This handles cases where preload failed or we hit a limit
+            if (!pool || pool.length === 0) {
+                const uri = this.soundFiles.get(type);
+                if (uri) {
+                    try {
+                        const { sound } = await Audio.Sound.createAsync(
+                            { uri },
+                            { shouldPlay: true, volume: 1.0 }
+                        );
+                        // We don't add it to the pool to avoid complexity, just play and forget (with unload)
+                        sound.setOnPlaybackStatusUpdate((status) => {
+                            if (status.isLoaded && status.didJustFinish) {
+                                sound.unloadAsync();
+                            }
+                        });
+                        return;
+                    } catch (e) {
+                        console.log(`Fallback play failed for ${type}:`, e);
+                        return;
+                    }
+                }
                 return;
             }
 
-            // Create a new sound instance for each play to allow overlapping
-            const { sound: soundObject } = await Audio.Sound.createAsync(
-                { uri },
-                { 
-                    shouldPlay: true, 
-                    volume: 1.0,
-                    rate: Math.min(Math.max(pitchScale, 0.5), 2.0),
-                    shouldCorrectPitch: true,
-                }
-            );
+            // Get next sound in round-robin
+            let index = this.poolIndices.get(type) || 0;
+            const soundObject = pool[index];
+            
+            // Update index for next time
+            this.poolIndices.set(type, (index + 1) % pool.length);
 
-            // Track active sounds for cleanup
-            this.activeSounds.push(soundObject);
+            // Play the sound
+            try {
+                // Reset pitch and volume just in case
+                await soundObject.setRateAsync(Math.min(Math.max(pitchScale, 0.5), 2.0), true);
+                await soundObject.replayAsync();
+            } catch (playError) {
+                // If replay fails, try playFromPosition
+                await soundObject.playFromPositionAsync(0);
+            }
 
-            // Cleanup after playback
-            soundObject.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded && status.didJustFinish) {
-                    soundObject.unloadAsync();
-                    const index = this.activeSounds.indexOf(soundObject);
-                    if (index > -1) {
-                        this.activeSounds.splice(index, 1);
-                    }
-                }
-            });
         } catch (e) {
             console.log(`Error playing sound ${type}:`, e);
         }
     }
 
     async cleanup() {
-        for (const soundObj of this.activeSounds) {
-            try {
-                await soundObj.unloadAsync();
-            } catch (e) {
-                // Ignore cleanup errors
+        for (const pool of this.soundPools.values()) {
+            for (const soundObj of pool) {
+                try {
+                    await soundObj.unloadAsync();
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
             }
         }
-        this.activeSounds = [];
-        
-        for (const soundObj of this.loadedSounds.values()) {
-            try {
-                await soundObj.unloadAsync();
-            } catch (e) {
-                // Ignore cleanup errors
-            }
-        }
-        this.loadedSounds.clear();
+        this.soundPools.clear();
+        this.poolIndices.clear();
     }
 }
 
