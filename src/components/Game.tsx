@@ -142,10 +142,10 @@ export const Game: React.FC<GameProps> = () => {
   const onRingPassed = useCallback(
     (isPerfect: boolean) => {
       const state = gameStateRef.current;
-      
+
       // Track rings passed for progressive difficulty
       state.incrementRingsPassed();
-      
+
       if (state.score > 3) {
         state.addPowerupProgress();
         if (state.isPowerupReady()) {
