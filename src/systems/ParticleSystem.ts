@@ -21,7 +21,7 @@ export interface BurstOptions {
     startAngle?: number;
 }
 
-const MAX_PARTICLES = 150; // Limit particle count to prevent lag
+const MAX_PARTICLES = 120; // Reduced from 150 to lower rendering overhead
 
 export class ParticleSystem {
     particles: Particle[] = [];
@@ -126,17 +126,21 @@ export class ParticleSystem {
      * Update all particles
      */
     update() {
+        const len = this.particles.length;
+        if (len === 0) return;
+        
         // Faster decay when we have too many particles
-        const decayMultiplier = this.particles.length > MAX_PARTICLES * 0.8 ? 1.5 : 1;
+        const decayMultiplier = len > MAX_PARTICLES * 0.8 ? 1.5 : 1;
+        const decayRate = 0.022 * decayMultiplier;
         
         let writeIndex = 0;
-        for (let i = 0; i < this.particles.length; i++) {
+        for (let i = 0; i < len; i++) {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
             p.vx *= 0.97;
             p.vy *= 0.97;
-            p.life -= 0.022 * decayMultiplier;
+            p.life -= decayRate;
             p.size *= 0.96;
             if (p.rotation !== undefined && p.rotationSpeed !== undefined) {
                 p.rotation += p.rotationSpeed;

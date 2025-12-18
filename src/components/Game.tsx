@@ -32,6 +32,7 @@ export const Game: React.FC<GameProps> = () => {
     const lastTimeRef = useRef(0);
     const screenShakeRef = useRef(0);
     const cameraZoomRef = useRef(1);
+    const animationTimeRef = useRef(0);
 
     // React state for UI updates
     const [, forceUpdate] = useState(0);
@@ -395,14 +396,14 @@ export const Game: React.FC<GameProps> = () => {
                     break;
             }
 
-            // Celebration particles
-            particlesRef.current.burst(centerX, centerY, powerupInfo.color, 35, {
+            // Celebration particles - reduced counts for performance
+            particlesRef.current.burst(centerX, centerY, powerupInfo.color, 25, {
                 minSpeed: 3,
                 maxSpeed: 8,
                 minSize: 4,
                 maxSize: 10,
             });
-            particlesRef.current.burst(centerX, centerY, '#ffffff', 15, {
+            particlesRef.current.burst(centerX, centerY, '#ffffff', 10, {
                 minSpeed: 4,
                 maxSpeed: 10,
                 minSize: 2,
@@ -412,40 +413,46 @@ export const Game: React.FC<GameProps> = () => {
         [centerX, centerY, getColors, showComboPopup]
     );
 
+    // Static array to avoid recreating every frame
+    const TIMED_POWERUPS = [
+        { key: 'slowTime', state: 'slowTimeActive' },
+        { key: 'freeze', state: 'freezeActive' },
+        { key: 'ghost', state: 'ghostActive' },
+        { key: 'invincible', state: 'invincibleActive' },
+        { key: 'tinyMode', state: 'tinyModeActive' },
+        { key: 'giantMode', state: 'giantModeActive' },
+        { key: 'pulse', state: 'pulseActive' },
+        { key: 'elastic', state: 'elasticActive' },
+        { key: 'doublePoints', state: 'doublePointsActive' },
+        { key: 'triplePoints', state: 'triplePointsActive' },
+        { key: 'perfectStreak', state: 'perfectStreakActive' },
+        { key: 'comboKeeper', state: 'comboKeeperActive' },
+        { key: 'magnetize', state: 'magnetizeActive' },
+        { key: 'wideGap', state: 'wideGapActive' },
+        { key: 'slowRings', state: 'slowRingsActive' },
+        { key: 'noDoubles', state: 'noDoublesActive' },
+        { key: 'autoPass', state: 'autoPassActive' },
+        { key: 'xray', state: 'xrayActive' },
+        { key: 'reverseRings', state: 'reverseRingsActive' },
+        { key: 'rainbow', state: 'rainbowActive' },
+        { key: 'gravity', state: 'gravityActive' },
+        { key: 'mirror', state: 'mirrorActive' },
+    ] as const;
+
     // Update powerups
     const updatePowerups = useCallback(() => {
         const state = gameStateRef.current;
         const now = Date.now();
 
-        const timedPowerups = [
-            { key: 'slowTime', state: 'slowTimeActive' },
-            { key: 'freeze', state: 'freezeActive' },
-            { key: 'ghost', state: 'ghostActive' },
-            { key: 'invincible', state: 'invincibleActive' },
-            { key: 'tinyMode', state: 'tinyModeActive' },
-            { key: 'giantMode', state: 'giantModeActive' },
-            { key: 'pulse', state: 'pulseActive' },
-            { key: 'elastic', state: 'elasticActive' },
-            { key: 'doublePoints', state: 'doublePointsActive' },
-            { key: 'triplePoints', state: 'triplePointsActive' },
-            { key: 'perfectStreak', state: 'perfectStreakActive' },
-            { key: 'comboKeeper', state: 'comboKeeperActive' },
-            { key: 'magnetize', state: 'magnetizeActive' },
-            { key: 'wideGap', state: 'wideGapActive' },
-            { key: 'slowRings', state: 'slowRingsActive' },
-            { key: 'noDoubles', state: 'noDoublesActive' },
-            { key: 'autoPass', state: 'autoPassActive' },
-            { key: 'xray', state: 'xrayActive' },
-            { key: 'reverseRings', state: 'reverseRingsActive' },
-            { key: 'rainbow', state: 'rainbowActive' },
-            { key: 'gravity', state: 'gravityActive' },
-            { key: 'mirror', state: 'mirrorActive' },
-        ];
-
-        for (const powerup of timedPowerups) {
-            if (state.activePowerups[powerup.key] && now > state.activePowerups[powerup.key]) {
-                (state as any)[powerup.state] = false;
-                delete state.activePowerups[powerup.key];
+        // Only check active powerups to avoid unnecessary iterations
+        const activeKeys = Object.keys(state.activePowerups);
+        if (activeKeys.length > 0) {
+            for (const powerup of TIMED_POWERUPS) {
+                const expiry = state.activePowerups[powerup.key];
+                if (expiry && now > expiry) {
+                    (state as any)[powerup.state] = false;
+                    delete state.activePowerups[powerup.key];
+                }
             }
         }
 
@@ -731,12 +738,20 @@ export const Game: React.FC<GameProps> = () => {
 
     // Animation loop
     useEffect(() => {
+        let frameCount = 0;
         const gameLoop = (timestamp: number) => {
             const deltaTime = Math.min(timestamp - lastTimeRef.current, 100);
             lastTimeRef.current = timestamp;
+            animationTimeRef.current = timestamp;
 
             update(deltaTime);
-            forceUpdate((n) => n + 1);
+            
+            // Only force re-render every frame when playing, otherwise every 2nd frame
+            // This maintains visual smoothness while reducing React overhead
+            frameCount++;
+            if (gameStateRef.current.isPlaying || frameCount % 2 === 0) {
+                forceUpdate((n) => n + 1);
+            }
 
             animationRef.current = requestAnimationFrame(gameLoop);
         };
@@ -785,6 +800,7 @@ export const Game: React.FC<GameProps> = () => {
                 isPowerupReady={state.isPowerupReady()}
                 screenShake={screenShakeRef.current}
                 cameraZoom={cameraZoomRef.current}
+                animationTime={animationTimeRef.current}
             />
 
             <ScoreDisplay

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import {
   Canvas,
   Circle,
@@ -51,6 +51,7 @@ interface GameCanvasProps {
   isPowerupReady: boolean;
   screenShake: number;
   cameraZoom: number;
+  animationTime: number; // Pass time from game loop to avoid Date.now() calls
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -81,22 +82,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   isPowerupReady,
   screenShake,
   cameraZoom,
+  animationTime,
 }) => {
   const pulsedSize = playerSize * pulseScale;
-  const time = Date.now() * 0.003;
+  const time = animationTime * 0.003;
 
-  // Calculate shake offset
-  const shakeX = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
-  const shakeY = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+  // Calculate shake offset - use deterministic shake based on time instead of random
+  const shakeX = screenShake > 0 ? Math.sin(animationTime * 0.1) * screenShake * 0.5 : 0;
+  const shakeY = screenShake > 0 ? Math.cos(animationTime * 0.13) * screenShake * 0.5 : 0;
 
-  // Rainbow color calculation
-  const rainbowHue = rainbowActive ? (Date.now() * 0.3) % 360 : 0;
+  // Rainbow color calculation - memoize to avoid recalculation
+  const rainbowHue = rainbowActive ? (animationTime * 0.3) % 360 : 0;
   const playerColor = rainbowActive
     ? `hsl(${rainbowHue}, 80%, 60%)`
     : theme.player;
 
-  // Find nearest ring for target zone
-  const nearestRing = rings.find((r) => !r.passed && r.radius > playerSize);
+  // Find nearest ring for target zone - memoized
+  const nearestRing = useMemo(
+    () => rings.find((r) => !r.passed && r.radius > playerSize),
+    [rings, playerSize]
+  );
 
   return (
     <Canvas style={{ width, height }}>
@@ -287,7 +292,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         })}
 
         {/* Particles - limit rendered count for performance */}
-        {particles.slice(0, 100).map((p, index) => (
+        {particles.slice(0, 80).map((p, index) => (
           <Circle
             key={`particle-${index}`}
             cx={p.x}
@@ -318,7 +323,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         {magnetizeActive && (
           <Group>
             {[0, 1, 2].map((i) => {
-              const wavePulse = (Date.now() % 1000) / 1000;
+              const wavePulse = (animationTime % 1000) / 1000;
               const waveOffset = (wavePulse + i * 0.33) % 1;
               const waveRadius = pulsedSize + 20 + waveOffset * 60;
               return (
@@ -389,62 +394,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         />
 
         {/* Holding indicator */}
-        {isHolding &&
-          isPlaying &&
-          !tinyModeActive &&
-          !giantModeActive &&
-          (() => {
-            const expandPulse = (Date.now() % 500) / 500;
-            return (
-              <Circle
-                cx={centerX}
-                cy={centerY}
-                r={pulsedSize + expandPulse * 15}
-                style="stroke"
-                strokeWidth={3 - expandPulse * 2}
-                color={`rgba(255, 255, 255, ${0.6 - expandPulse * 0.6})`}
-              />
-            );
-          })()}
+        {isHolding && isPlaying && !tinyModeActive && !giantModeActive && (
+          <HoldingIndicator
+            centerX={centerX}
+            centerY={centerY}
+            pulsedSize={pulsedSize}
+            animationTime={animationTime}
+          />
+        )}
 
         {/* Powerup progress ring */}
         {powerupProgressPercent > 0 && (
-          <Group>
-            {/* Background ring */}
-            <Circle
-              cx={centerX}
-              cy={centerY}
-              r={playerSize + 35}
-              style="stroke"
-              strokeWidth={3}
-              color="rgba(255, 255, 255, 0.08)"
-            />
-            {/* Progress arc */}
-            {powerupProgressPercent > 0 && (
-              <Path
-                path={(() => {
-                  const r = playerSize + 35;
-                  const path = Skia.Path.Make();
-                  path.addArc(
-                    {
-                      x: centerX - r,
-                      y: centerY - r,
-                      width: r * 2,
-                      height: r * 2,
-                    },
-                    -90,
-                    360 * powerupProgressPercent
-                  );
-                  return path;
-                })()}
-                style="stroke"
-                strokeWidth={3}
-                color={POWERUP_TYPES[nextPowerupType]?.color || "#ffd700"}
-                opacity={isPowerupReady ? 0.9 : 0.5}
-                strokeCap="round"
-              />
-            )}
-          </Group>
+          <PowerupProgressRing
+            centerX={centerX}
+            centerY={centerY}
+            playerSize={playerSize}
+            progressPercent={powerupProgressPercent}
+            nextPowerupType={nextPowerupType}
+            isPowerupReady={isPowerupReady}
+          />
         )}
 
         {/* Slow time effect */}
@@ -481,13 +449,84 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             r={Math.min(width, height) / 2 - 4}
             style="stroke"
             strokeWidth={8}
-            color={`hsla(${(Date.now() * 0.2) % 360}, 100%, 60%, 0.3)`}
+            color={`hsla(${(animationTime * 0.2) % 360}, 100%, 60%, 0.3)`}
           />
         )}
       </Group>
     </Canvas>
   );
 };
+
+// Memoized sub-components to prevent re-renders
+const HoldingIndicator = memo(({ centerX, centerY, pulsedSize, animationTime }: {
+  centerX: number;
+  centerY: number;
+  pulsedSize: number;
+  animationTime: number;
+}) => {
+  const expandPulse = (animationTime % 500) / 500;
+  return (
+    <Circle
+      cx={centerX}
+      cy={centerY}
+      r={pulsedSize + expandPulse * 15}
+      style="stroke"
+      strokeWidth={3 - expandPulse * 2}
+      color={`rgba(255, 255, 255, ${0.6 - expandPulse * 0.6})`}
+    />
+  );
+});
+
+const PowerupProgressRing = memo(({ centerX, centerY, playerSize, progressPercent, nextPowerupType, isPowerupReady }: {
+  centerX: number;
+  centerY: number;
+  playerSize: number;
+  progressPercent: number;
+  nextPowerupType: string;
+  isPowerupReady: boolean;
+}) => {
+  // Memoize the path to avoid recreating every frame
+  const progressPath = useMemo(() => {
+    const r = playerSize + 35;
+    const path = Skia.Path.Make();
+    path.addArc(
+      {
+        x: centerX - r,
+        y: centerY - r,
+        width: r * 2,
+        height: r * 2,
+      },
+      -90,
+      360 * progressPercent
+    );
+    return path;
+  }, [centerX, centerY, playerSize, progressPercent]);
+
+  return (
+    <Group>
+      {/* Background ring */}
+      <Circle
+        cx={centerX}
+        cy={centerY}
+        r={playerSize + 35}
+        style="stroke"
+        strokeWidth={3}
+        color="rgba(255, 255, 255, 0.08)"
+      />
+      {/* Progress arc */}
+      {progressPercent > 0 && (
+        <Path
+          path={progressPath}
+          style="stroke"
+          strokeWidth={3}
+          color={POWERUP_TYPES[nextPowerupType]?.color || "#ffd700"}
+          opacity={isPowerupReady ? 0.9 : 0.5}
+          strokeCap="round"
+        />
+      )}
+    </Group>
+  );
+});
 
 // Helper functions
 function lightenColor(hex: string, percent: number): string {

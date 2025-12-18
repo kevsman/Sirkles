@@ -336,9 +336,15 @@ export class SoundSystem {
         this.currentCombo = combo;
     }
 
-    async play(type: string, pitchScale: number = 1.0) {
+    // Fire-and-forget play - don't await, use void to indicate intentional non-await
+    play(type: string, pitchScale: number = 1.0) {
         if (!this.enabled || !this.initialized) return;
 
+        // Use void to explicitly mark as fire-and-forget
+        void this.playAsync(type, pitchScale);
+    }
+
+    private async playAsync(type: string, pitchScale: number = 1.0) {
         try {
             let pool = this.soundPools.get(type);
             
@@ -374,10 +380,12 @@ export class SoundSystem {
             // Update index for next time
             this.poolIndices.set(type, (index + 1) % pool.length);
 
-            // Play the sound
+            // Play the sound - use replayAsync which is simpler
             try {
-                // Reset pitch and volume just in case
-                await soundObject.setRateAsync(Math.min(Math.max(pitchScale, 0.5), 2.0), true);
+                // Only set rate if not 1.0 to avoid unnecessary async call
+                if (Math.abs(pitchScale - 1.0) > 0.01) {
+                    await soundObject.setRateAsync(Math.min(Math.max(pitchScale, 0.5), 2.0), true);
+                }
                 await soundObject.replayAsync();
             } catch (playError) {
                 // If replay fails, try playFromPosition
@@ -385,7 +393,7 @@ export class SoundSystem {
             }
 
         } catch (e) {
-            console.log(`Error playing sound ${type}:`, e);
+            // Silently fail - don't log every sound error to avoid console spam
         }
     }
 
