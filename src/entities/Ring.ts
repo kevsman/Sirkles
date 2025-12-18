@@ -85,9 +85,25 @@ export class Ring {
 }
 
 // Ring Factory
-export function createRing(screenSize: number, difficulty: number, patternMode: 'normal' | 'double' | 'moving', ringColor: string): Ring {
-    const difficultyFactor = Math.min(difficulty / 40, 1);
-    const gap = GAME_CONFIG.GAP_BASE - (GAME_CONFIG.GAP_BASE - GAME_CONFIG.GAP_MIN) * difficultyFactor;
+export function createRing(
+    screenSize: number, 
+    difficulty: number, 
+    patternMode: 'normal' | 'double' | 'moving', 
+    ringColor: string,
+    options?: {
+        gap?: number;
+        doubleChance?: number;
+        movingGapChance?: number;
+    }
+): Ring {
+    // Use provided gap or calculate from difficulty (fallback for backward compatibility)
+    let gap: number;
+    if (options?.gap !== undefined) {
+        gap = options.gap;
+    } else {
+        const difficultyFactor = Math.min(difficulty / 40, 1);
+        gap = GAME_CONFIG.GAP_BASE - (GAME_CONFIG.GAP_BASE - GAME_CONFIG.GAP_MIN) * difficultyFactor;
+    }
 
     const minInner = GAME_CONFIG.MIN_PLAYER_SIZE + 5;
     const maxInner = GAME_CONFIG.MAX_PLAYER_SIZE - gap - 10;
@@ -96,15 +112,20 @@ export function createRing(screenSize: number, difficulty: number, patternMode: 
 
     const ring = new Ring(screenSize, innerRadius, outerRadius, ringColor);
 
-    // Pattern variations
-    if (patternMode === 'double' && Math.random() < 0.4) {
+    // Pattern variations - use provided chances or defaults
+    const doubleChance = options?.doubleChance ?? 0.4;
+    const movingGapChance = options?.movingGapChance ?? 0.3;
+    
+    if (patternMode === 'double' && Math.random() < doubleChance) {
         ring.isDouble = true;
     }
 
-    if (patternMode === 'moving' && Math.random() < 0.3) {
+    if (patternMode === 'moving' && Math.random() < movingGapChance) {
         ring.movingGap = true;
         ring.gapAngle = Math.random() * Math.PI * 2;
-        ring.gapSpeed = (Math.random() - 0.5) * 0.05;
+        // Slower gap movement at lower difficulties
+        const baseGapSpeed = 0.03 + (difficulty / 100) * 0.02;
+        ring.gapSpeed = (Math.random() - 0.5) * baseGapSpeed;
     }
 
     return ring;

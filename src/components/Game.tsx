@@ -108,7 +108,12 @@ export const Game: React.FC<GameProps> = () => {
       getScreenSize(),
       state.difficulty,
       state.patternMode,
-      colors.ring
+      colors.ring,
+      {
+        gap: state.getCurrentGap(),
+        doubleChance: state.getDoubleRingChance(),
+        movingGapChance: state.getMovingGapChance(),
+      }
     );
     state.rings.push(ring);
   }, [getScreenSize, getColors]);
@@ -137,6 +142,10 @@ export const Game: React.FC<GameProps> = () => {
   const onRingPassed = useCallback(
     (isPerfect: boolean) => {
       const state = gameStateRef.current;
+      
+      // Track rings passed for progressive difficulty
+      state.incrementRingsPassed();
+      
       if (state.score > 3) {
         state.addPowerupProgress();
         if (state.isPowerupReady()) {

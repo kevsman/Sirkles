@@ -27,7 +27,12 @@ export class GameState {
     // Difficulty
     difficulty: number = 1;
     patternMode: 'normal' | 'double' | 'moving' = 'normal';
-    nextPatternChange: number = 25;
+    
+    // Progressive difficulty tracking
+    totalRingsPassed: number = 0;
+    isInWarmup: boolean = true;
+    milestoneBreatherUntil: number = 0;
+    lastMilestoneHit: number = 0;
 
     // Combo system
     combo: number = 0;
@@ -135,7 +140,12 @@ export class GameState {
         // Difficulty
         this.difficulty = 1;
         this.patternMode = 'normal';
-        this.nextPatternChange = 25;
+        
+        // Progressive difficulty tracking
+        this.totalRingsPassed = 0;
+        this.isInWarmup = true;
+        this.milestoneBreatherUntil = 0;
+        this.lastMilestoneHit = 0;
 
         // Combo system
         this.combo = 0;
@@ -319,18 +329,44 @@ export class GameState {
     }
 
     updateDifficulty() {
-        // More gradual difficulty scaling
-        const scoreForDifficulty = Math.max(0, this.score - 5);
-
-        this.difficulty = 1 + scoreForDifficulty * 0.08;
-        let baseSpeed = GAME_CONFIG.BASE_RING_SPEED + scoreForDifficulty * 0.04;
-
-        // Sawtooth Difficulty Curve - Tension & Release
         const now = Date.now();
+        
+        // === WARMUP PHASE ===
+        // First few rings are extra easy to hook players
+        this.isInWarmup = this.totalRingsPassed < GAME_CONFIG.WARMUP_RINGS;
+        
+        // === MILESTONE BREATHERS ===
+        // Check for milestone achievements - gives brief easy moment
+        const milestones = GAME_CONFIG.MILESTONE_SCORES || [10, 25, 50, 100, 150, 200];
+        for (const milestone of milestones) {
+            if (this.score >= milestone && this.lastMilestoneHit < milestone) {
+                this.milestoneBreatherUntil = now + GAME_CONFIG.MILESTONE_BREATHER_DURATION;
+                this.lastMilestoneHit = milestone;
+                break;
+            }
+        }
+        const isInMilestoneBreather = now < this.milestoneBreatherUntil;
+        
+        // === BASE DIFFICULTY CALCULATION ===
+        // Use logarithmic scaling for smoother progression
+        // Difficulty ramps up quickly early, then slows down
+        const scoreForDifficulty = Math.max(0, this.score);
+        const logScale = Math.log10(scoreForDifficulty + 10) - 1; // Starts at 0, increases logarithmically
+        this.difficulty = 1 + logScale * 2;
+        
+        // === SPEED CALCULATION ===
+        let baseSpeed = GAME_CONFIG.BASE_RING_SPEED + scoreForDifficulty * GAME_CONFIG.SPEED_INCREASE_PER_SCORE;
+        
+        // Warmup: slower speed
+        if (this.isInWarmup) {
+            baseSpeed *= GAME_CONFIG.WARMUP_SPEED_MULTIPLIER;
+        }
+        
+        // === SAWTOOTH DIFFICULTY CURVE ===
+        // Tension & Release - creates "flow" moments
         const waveTime = now - this.waveStartTime;
 
         if (waveTime > GAME_CONFIG.DIFFICULTY_WAVE_DURATION) {
-            // Start recovery phase
             if (!this.inRecoveryPhase) {
                 this.inRecoveryPhase = true;
                 this.recoveryStartTime = now;
@@ -340,7 +376,7 @@ export class GameState {
         if (this.inRecoveryPhase) {
             const recoveryTime = now - this.recoveryStartTime;
             if (recoveryTime < GAME_CONFIG.DIFFICULTY_RECOVERY_DURATION) {
-                // During recovery: reduce speed
+                // During recovery: reduce speed for breathing room
                 baseSpeed *= 1 - GAME_CONFIG.DIFFICULTY_RECOVERY_PERCENT;
             } else {
                 // Recovery over, start new wave
@@ -348,23 +384,82 @@ export class GameState {
                 this.waveStartTime = now;
             }
         }
+        
+        // Milestone breather: temporary speed reduction
+        if (isInMilestoneBreather) {
+            baseSpeed *= 1 - GAME_CONFIG.MILESTONE_SPEED_REDUCTION;
+        }
 
         this.ringSpeed = baseSpeed;
-        this.ringSpawnInterval = Math.max(800, GAME_CONFIG.RING_SPAWN_INTERVAL_BASE - scoreForDifficulty * 20);
-
-        // Pattern mode changes - delayed and more gradual
-        if (this.score >= this.nextPatternChange) {
-            if (this.patternMode === 'normal') {
-                this.patternMode = 'double';
-                this.nextPatternChange = this.score + 20;
-            } else if (this.patternMode === 'double') {
-                this.patternMode = 'moving';
-                this.nextPatternChange = this.score + 25;
-            } else {
-                this.patternMode = 'normal';
-                this.nextPatternChange = this.score + 15;
-            }
+        
+        // === SPAWN INTERVAL ===
+        // Starts slow, gets faster over time
+        const spawnDecrease = scoreForDifficulty * GAME_CONFIG.SPAWN_INTERVAL_DECREASE_PER_SCORE;
+        this.ringSpawnInterval = Math.max(
+            GAME_CONFIG.RING_SPAWN_INTERVAL_MIN,
+            GAME_CONFIG.RING_SPAWN_INTERVAL_BASE - spawnDecrease
+        );
+        
+        // Warmup: even slower spawn rate
+        if (this.isInWarmup) {
+            this.ringSpawnInterval *= 1.3;
         }
+
+        // === PATTERN MODE PROGRESSION ===
+        // Unlock harder patterns based on score thresholds
+        if (this.score >= GAME_CONFIG.MOVING_GAP_UNLOCK_SCORE) {
+            this.patternMode = 'moving';
+        } else if (this.score >= GAME_CONFIG.DOUBLE_RING_UNLOCK_SCORE) {
+            this.patternMode = 'double';
+        } else {
+            this.patternMode = 'normal';
+        }
+    }
+    
+    // Track rings passed for warmup system
+    incrementRingsPassed() {
+        this.totalRingsPassed++;
+    }
+    
+    // Get current gap size based on difficulty
+    getCurrentGap(): number {
+        // Calculate gap based on score with smooth progression
+        const gapScale = GAME_CONFIG.GAP_DIFFICULTY_SCALE || 50;
+        const progress = Math.min(1, this.score / gapScale);
+        
+        // Use ease-in curve so gap shrinks slowly at first, faster later
+        const easedProgress = progress * progress;
+        
+        let gap = GAME_CONFIG.GAP_BASE - (GAME_CONFIG.GAP_BASE - GAME_CONFIG.GAP_MIN) * easedProgress;
+        
+        // Warmup bonus gap
+        if (this.isInWarmup) {
+            gap += GAME_CONFIG.WARMUP_GAP_BONUS;
+        }
+        
+        return gap;
+    }
+    
+    // Get chance for double rings based on score
+    getDoubleRingChance(): number {
+        if (this.score < GAME_CONFIG.DOUBLE_RING_UNLOCK_SCORE) return 0;
+        
+        const scoreAboveUnlock = this.score - GAME_CONFIG.DOUBLE_RING_UNLOCK_SCORE;
+        const chanceRange = GAME_CONFIG.DOUBLE_RING_CHANCE_MAX - GAME_CONFIG.DOUBLE_RING_CHANCE_BASE;
+        const progress = Math.min(1, scoreAboveUnlock / 50); // Ramp up over 50 points
+        
+        return GAME_CONFIG.DOUBLE_RING_CHANCE_BASE + chanceRange * progress;
+    }
+    
+    // Get chance for moving gaps based on score
+    getMovingGapChance(): number {
+        if (this.score < GAME_CONFIG.MOVING_GAP_UNLOCK_SCORE) return 0;
+        
+        const scoreAboveUnlock = this.score - GAME_CONFIG.MOVING_GAP_UNLOCK_SCORE;
+        const chanceRange = GAME_CONFIG.MOVING_GAP_CHANCE_MAX - GAME_CONFIG.MOVING_GAP_CHANCE_BASE;
+        const progress = Math.min(1, scoreAboveUnlock / 50); // Ramp up over 50 points
+        
+        return GAME_CONFIG.MOVING_GAP_CHANCE_BASE + chanceRange * progress;
     }
 
     addScore(points: number) {
