@@ -128,7 +128,7 @@ export const Game: React.FC<GameProps> = () => {
     sound.play("combo");
     haptic.medium();
     const powerupInfo = POWERUP_TYPES[powerup.type];
-    showComboPopup(powerupInfo.icon + " " + powerupInfo.name + " INCOMING!");
+    showComboPopup(powerupInfo.name + " INCOMING!");
 
     particlesRef.current.burst(width - 60, 80, "#ffd700", 15, {
       minSpeed: 2,
@@ -242,40 +242,40 @@ export const Game: React.FC<GameProps> = () => {
 
       // Activation messages
       const activationMessages: Record<string, string[]> = {
-        slowTime: ["⏱️ TIME SLOWED!", "⏱️ MATRIX MODE!", "⏱️ SLOW-MO!"],
-        shield: ["🛡️ PROTECTED!", "🛡️ SHIELD UP!", "🛡️ ARMOR ON!"],
-        ghost: ["👻 GHOST MODE!", "👻 PHASING!", "👻 UNTOUCHABLE!"],
-        freeze: ["❄️ FROZEN!", "❄️ TIME STOP!", "❄️ ICE AGE!"],
-        invincible: ["⚡ INVINCIBLE!", "⚡ GODMODE!", "⚡ UNSTOPPABLE!"],
-        tinyMode: ["🔬 TINY MODE!", "🔬 SHRINK RAY!", "🔬 MINI ME!"],
-        giantMode: ["🦖 GIANT MODE!", "🦖 MEGA SIZE!", "🦖 HULK SMASH!"],
-        pulse: ["💓 AUTO PULSE!", "💓 HEARTBEAT!", "💓 PERFECT FIT!"],
-        elastic: ["🎈 ELASTIC!", "🎈 STRETCHY!", "🎈 BENDY!"],
-        doublePoints: ["⭐ 2X POINTS!", "⭐ DOUBLE UP!", "⭐ BONUS MODE!"],
-        triplePoints: ["💎 3X POINTS!", "💎 TRIPLE THREAT!", "💎 MEGA BONUS!"],
-        perfectStreak: ["✨ PERFECTION!", "✨ FLAWLESS!", "✨ GOLDEN TOUCH!"],
-        comboKeeper: ["🔒 COMBO LOCKED!", "🔒 UNBREAKABLE!", "🔒 SECURED!"],
-        comboBoost: ["🚀 COMBO BOOST!", "🚀 +10 COMBO!", "🚀 ROCKET!"],
-        jackpot: ["🎰 JACKPOT!", "🎰 LUCKY!", "🎰 BIG WIN!"],
-        magnetize: ["🧲 MAGNETIZED!", "🧲 ATTRACTION!", "🧲 PULL POWER!"],
-        wideGap: ["🚪 WIDE OPEN!", "🚪 EASY MODE!", "🚪 BIG GAPS!"],
-        slowRings: ["🐢 SLOW RINGS!", "🐢 EASY PACE!", "🐢 CHILL MODE!"],
-        noDoubles: ["1️⃣ NO DOUBLES!", "1️⃣ SINGLES ONLY!", "1️⃣ SIMPLE!"],
-        autoPass: ["🤖 AUTO PASS!", "🤖 ROBOT MODE!", "🤖 AUTOPILOT!"],
-        xray: ["👁️ X-RAY!", "👁️ VISION!", "👁️ SEE ALL!"],
-        clearRings: ["💥 BOOM!", "💥 CLEARED!", "💥 OBLITERATED!"],
-        reverseRings: ["🔄 REVERSED!", "🔄 REWIND!", "🔄 FLIP IT!"],
-        shrinkRings: ["📉 SHRINK RINGS!", "📉 SMALLER!", "📉 COMPACT!"],
-        expandRings: ["📈 EXPAND RINGS!", "📈 BIGGER!", "📈 GROW!"],
-        convertRings: ["💚 CONVERTED!", "💚 ALL CLEAR!", "💚 FREE PASS!"],
-        extraLife: ["❤️ LIFE BANKED!", "❤️ EXTRA LIFE!", "❤️ SAVED!"],
-        rainbow: ["🌈 RAINBOW!", "🌈 DISCO TIME!", "🌈 PARTY MODE!"],
-        gravity: ["🌀 GRAVITY!", "🌀 SPIRAL!", "🌀 VORTEX!"],
-        mirror: ["🪞 MIRROR!", "🪞 REVERSED!", "🪞 FLIP CONTROLS!"],
+        slowTime: ["TIME SLOWED!", "MATRIX MODE!", "SLOW-MO!"],
+        shield: ["PROTECTED!", "SHIELD UP!", "ARMOR ON!"],
+        ghost: ["GHOST MODE!", "PHASING!", "UNTOUCHABLE!"],
+        freeze: ["FROZEN!", "TIME STOP!", "ICE AGE!"],
+        invincible: ["INVINCIBLE!", "GODMODE!", "UNSTOPPABLE!"],
+        tinyMode: ["TINY MODE!", "SHRINK RAY!", "MINI ME!"],
+        giantMode: ["GIANT MODE!", "MEGA SIZE!", "HULK SMASH!"],
+        pulse: ["AUTO PULSE!", "HEARTBEAT!", "PERFECT FIT!"],
+        elastic: ["ELASTIC!", "STRETCHY!", "BENDY!"],
+        doublePoints: ["2X POINTS!", "DOUBLE UP!", "BONUS MODE!"],
+        triplePoints: ["3X POINTS!", "TRIPLE THREAT!", "MEGA BONUS!"],
+        perfectStreak: ["PERFECTION!", "FLAWLESS!", "GOLDEN TOUCH!"],
+        comboKeeper: ["COMBO LOCKED!", "UNBREAKABLE!", "SECURED!"],
+        comboBoost: ["COMBO BOOST!", "+10 COMBO!", "ROCKET!"],
+        jackpot: ["JACKPOT!", "LUCKY!", "BIG WIN!"],
+        magnetize: ["MAGNETIZED!", "ATTRACTION!", "PULL POWER!"],
+        wideGap: ["WIDE OPEN!", "EASY MODE!", "BIG GAPS!"],
+        slowRings: ["SLOW RINGS!", "EASY PACE!", "CHILL MODE!"],
+        noDoubles: ["NO DOUBLES!", "SINGLES ONLY!", "SIMPLE!"],
+        autoPass: ["AUTO PASS!", "ROBOT MODE!", "AUTOPILOT!"],
+        xray: ["X-RAY!", "VISION!", "SEE ALL!"],
+        clearRings: ["BOOM!", "CLEARED!", "OBLITERATED!"],
+        reverseRings: ["REVERSED!", "REWIND!", "FLIP IT!"],
+        shrinkRings: ["SHRINK RINGS!", "SMALLER!", "COMPACT!"],
+        expandRings: ["EXPAND RINGS!", "BIGGER!", "GROW!"],
+        convertRings: ["CONVERTED!", "ALL CLEAR!", "FREE PASS!"],
+        extraLife: ["LIFE BANKED!", "EXTRA LIFE!", "SAVED!"],
+        rainbow: ["RAINBOW!", "DISCO TIME!", "PARTY MODE!"],
+        gravity: ["GRAVITY!", "SPIRAL!", "VORTEX!"],
+        mirror: ["MIRROR!", "REVERSED!", "FLIP CONTROLS!"],
       };
 
       const messages = activationMessages[type] || [
-        powerupInfo.icon + " " + powerupInfo.name,
+        powerupInfo.name,
       ];
       const message = messages[Math.floor(Math.random() * messages.length)];
       showComboPopup(message, powerupInfo.description);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { POWERUP_TYPES } from '../config/powerups';
 
 interface PowerupIndicatorProps {
@@ -9,7 +9,7 @@ interface PowerupIndicatorProps {
 
 export const PowerupIndicator: React.FC<PowerupIndicatorProps> = ({ activePowerups, hasShield }) => {
     const now = Date.now();
-    const items: Array<{ type: string; remaining: string; color: string; icon: string }> = [];
+    const items: Array<{ type: string; remaining: string; color: string; name: string }> = [];
 
     for (const [type, endTime] of Object.entries(activePowerups)) {
         if (endTime > now) {
@@ -21,7 +21,7 @@ export const PowerupIndicator: React.FC<PowerupIndicatorProps> = ({ activePoweru
                     type,
                     remaining: '∞',
                     color: info.color,
-                    icon: info.icon,
+                    name: info.name,
                 });
             } else {
                 const remaining = Math.ceil((endTime - now) / 1000);
@@ -29,7 +29,7 @@ export const PowerupIndicator: React.FC<PowerupIndicatorProps> = ({ activePoweru
                     type,
                     remaining: `${remaining}s`,
                     color: info.color,
-                    icon: info.icon,
+                    name: info.name,
                 });
             }
         }
@@ -41,7 +41,7 @@ export const PowerupIndicator: React.FC<PowerupIndicatorProps> = ({ activePoweru
             type: 'shield',
             remaining: 'READY',
             color: info.color,
-            icon: info.icon,
+            name: info.name,
         });
     }
 
@@ -49,7 +49,7 @@ export const PowerupIndicator: React.FC<PowerupIndicatorProps> = ({ activePoweru
 
     return (
         <View style={styles.container}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.powerupList}>
                 {items.map((item) => (
                     <View
                         key={item.type}
@@ -62,11 +62,11 @@ export const PowerupIndicator: React.FC<PowerupIndicatorProps> = ({ activePoweru
                         ]}
                     >
                         <Text style={[styles.powerupText, { color: item.color }]}>
-                            {item.icon} {item.remaining}
+                            {item.name} {item.remaining}
                         </Text>
                     </View>
                 ))}
-            </ScrollView>
+            </View>
         </View>
     );
 };
@@ -80,7 +80,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         zIndex: 10,
     },
-    scrollContent: {
+    powerupList: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
         paddingHorizontal: 10,
     },
     powerupItem: {

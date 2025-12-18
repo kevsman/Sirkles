@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
         right: 0,
         alignItems: 'center',
         zIndex: 15,
+        paddingHorizontal: 20,
     },
     title: {
         fontSize: 38,
@@ -67,6 +68,7 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(255, 217, 61, 0.5)',
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 10,
+        textAlign: 'center',
     },
     subtitle: {
         fontSize: 16,
@@ -77,5 +79,6 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.5)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 8,
+        textAlign: 'center',
     },
 });
